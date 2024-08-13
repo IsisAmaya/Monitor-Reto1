@@ -8,7 +8,8 @@ INCLUDE_DIR = include
 BUILD_DIR = build
 
 # Archivos fuente y de cabecera (excluyendo MonitorServidores.cpp)
-SRCS = $(filter-out $(SRC_DIR)/MonitorServidores.cpp, $(wildcard $(SRC_DIR)/*.cpp)) main.cpp
+SRCS = $(wildcard $(SRC_DIR)/*.cpp) main.cpp
+SRCS := $(filter-out $(SRC_DIR)/MonitorServidores.cpp, $(SRCS))
 OBJS = $(SRCS:%.cpp=$(BUILD_DIR)/%.o)
 
 # Archivo ejecutable principal
@@ -57,7 +58,6 @@ run-monitor: $(MONITOR_TARGET)
 	@read -p "Ingrese la cantidad de servidores: " NUM_SERVERS; \
 	read -p "Ingrese los puertos (separados por espacio): " PORTS; \
 	./$(MONITOR_TARGET) $$NUM_SERVERS $$PORTS
-
 
 # Declarar reglas como phony
 .PHONY: all clean run-servidor run-cliente monitor run-monitor
