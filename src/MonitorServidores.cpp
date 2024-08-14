@@ -127,11 +127,10 @@ void recibirInformacionServidor() {
 
             // Imprimir los mensajes recibidos
             for (const auto& msg : messages) {
-                std::cout << "Mensaje recibido: " << msg << std::endl;
+                std::cout << msg << std::endl;
             }
         }
     }
-
     close(descriptorMonitor);
 }
 
