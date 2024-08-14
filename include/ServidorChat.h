@@ -32,13 +32,15 @@ private:
     void enviarMensajeATodos(const std::string& mensaje, int descriptorRemitente);
     void enviarListaUsuarios(int descriptorCliente);
     void enviarDetallesConexion(int descriptorCliente);
-    void enviarPromedioMensajes(int socketDescriptor, const sockaddr_in& direccionMonitor);
-    void enviarTasaUso(int socketDescriptor, const sockaddr_in& direccionMonitor);
-    void enviarTiempoEntreMensajes(int socketDescriptor, const sockaddr_in& direccionMonitor);
-    void enviarTiempoActividad(int socketDescriptor, const sockaddr_in& direccionMonitor);
+    std::string enviarPromedioMensajes();
+    std::string enviarTasaUso();
+    std::string enviarTiempoEntreMensajes();
+    std::string enviarTiempoActividad();
+    std::string enviarNumeroUsuarios();  // Nueva función
     void enviarInformacionMonitor();
-    void enviarNumeroUsuarios(int socketDescriptor, const sockaddr_in& direccionMonitor);  // Nueva función
 
+    std::string concatenarMensajes(const std::vector<std::string>& mensajes, const std::string& delimiter="\n");  // Nueva función
+    
     int puerto;
     int descriptorServidor;
     std::chrono::steady_clock::time_point tiempoInicio;

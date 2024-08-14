@@ -8,6 +8,16 @@
 #include <netinet/in.h>
 #include <chrono>
 #include <map>
+// Definir los códigos de escape para diferentes colores
+#define RESET   "\033[0m"
+#define RED     "\033[31m"      /* Red */
+#define GREEN   "\033[32m"      /* Green */
+#define YELLOW  "\033[33m"      /* Yellow */
+#define BLUE    "\033[34m"      /* Blue */
+#define MAGENTA "\033[35m"      /* Magenta */
+#define CYAN    "\033[36m"      /* Cyan */
+#define WHITE   "\033[37m"      /* White */
+
 
 // Constructor que inicializa el puerto del servidor
 ServidorChat::ServidorChat(int puerto)
@@ -192,23 +202,23 @@ void ServidorChat::enviarDetallesConexion(int descriptorCliente) {
 }
 
 // Enviar el promedio de mensajes al monitor
-void ServidorChat::enviarPromedioMensajes(int socketDescriptor, const sockaddr_in& direccionMonitor) {
+std::string ServidorChat::enviarPromedioMensajes() {
     std::chrono::duration<double> duracion = std::chrono::steady_clock::now() - tiempoInicio;
     double promedioMensajes = totalMensajes / duracion.count();
     std::string mensaje = "Promedio de mensajes: " + std::to_string(promedioMensajes) + " mensajes/segundo\n";
-    sendto(socketDescriptor, mensaje.c_str(), mensaje.size(), 0, (struct sockaddr*)&direccionMonitor, sizeof(direccionMonitor));
+    return mensaje;
 }
 
 // Enviar la tasa de uso al monitor
-void ServidorChat::enviarTasaUso(int socketDescriptor, const sockaddr_in& direccionMonitor) {
+std::string ServidorChat::enviarTasaUso() {
     std::chrono::duration<double> duracion = std::chrono::steady_clock::now() - tiempoInicio;
     double tasaUso = totalMensajes / duracion.count();
     std::string mensaje = "Tasa de uso: " + std::to_string(tasaUso) + " mensajes/segundo\n";
-    sendto(socketDescriptor, mensaje.c_str(), mensaje.size(), 0, (struct sockaddr*)&direccionMonitor, sizeof(direccionMonitor));
+    return mensaje;
 }
 
 // Enviar el tiempo promedio entre mensajes al monitor
-void ServidorChat::enviarTiempoEntreMensajes(int socketDescriptor, const sockaddr_in& direccionMonitor) {
+std::string ServidorChat::enviarTiempoEntreMensajes() {
     double tiempoTotal = 0.0;
     int contador = 0;
     auto ahora = std::chrono::steady_clock::now();
@@ -224,14 +234,34 @@ void ServidorChat::enviarTiempoEntreMensajes(int socketDescriptor, const sockadd
     }
     double tiempoPromedio = (contador > 0) ? (tiempoTotal / contador) : 0.0;
     std::string mensaje = "Tiempo promedio entre mensajes: " + std::to_string(tiempoPromedio) + " segundos\n";
-    sendto(socketDescriptor, mensaje.c_str(), mensaje.size(), 0, (struct sockaddr*)&direccionMonitor, sizeof(direccionMonitor));
+    return mensaje;
 }
 
 // Enviar el tiempo de actividad al monitor
-void ServidorChat::enviarTiempoActividad(int socketDescriptor, const sockaddr_in& direccionMonitor) {
+std::string ServidorChat::enviarTiempoActividad() {
     std::chrono::duration<double> duracion = std::chrono::steady_clock::now() - tiempoInicio;
     std::string mensaje = "Tiempo de actividad: " + std::to_string(duracion.count()) + " segundos\n";
-    sendto(socketDescriptor, mensaje.c_str(), mensaje.size(), 0, (struct sockaddr*)&direccionMonitor, sizeof(direccionMonitor));
+    return mensaje;
+}
+
+
+// Enviar el número de usuarios conectados al monitor
+std::string ServidorChat::enviarNumeroUsuarios() {
+    std::lock_guard<std::mutex> lock(mutexUsuarios);
+    std::string mensaje = "Número de usuarios conectados: " + std::to_string(usuarios.size()) + "\n";
+    return mensaje;
+}
+
+
+// Función para concatenar múltiples strings con un delimitador
+std::string ServidorChat::concatenarMensajes(const std::vector<std::string>& mensajes, const std::string& delimiter) {
+    std::string mensajesConcatenados;
+    
+    for (const auto& msg : mensajes) {
+        mensajesConcatenados += msg + delimiter;
+    }
+    
+    return mensajesConcatenados;
 }
 
 // Enviar toda la información al monitor
@@ -247,18 +277,22 @@ void ServidorChat::enviarInformacionMonitor() {
     direccionMonitor.sin_port = htons(55555); // Puerto para el monitor
     direccionMonitor.sin_addr.s_addr = inet_addr("127.0.0.1"); // Dirección IP del monitor (localhost)
 
-    enviarPromedioMensajes(socketDescriptor, direccionMonitor);
-    enviarTasaUso(socketDescriptor, direccionMonitor);
-    enviarTiempoEntreMensajes(socketDescriptor, direccionMonitor);
-    enviarTiempoActividad(socketDescriptor, direccionMonitor);
-    enviarNumeroUsuarios(socketDescriptor, direccionMonitor);  // Enviar número de usuarios conectados
+    std::string mensaje = GREEN "Servidor en el puerto: " + std::to_string(puerto) + RESET + "\n";
+    std::string numeroDeUsuarios = enviarNumeroUsuarios();
+    std::string tasaDeUso = enviarTasaUso();
+    std::string promedioMensajes = enviarPromedioMensajes(); 
+    std::string tiempoEntreMensajes = enviarTiempoEntreMensajes();
+    std::string tiempoDeActividad = enviarTiempoActividad();
+    
+    std::vector<std::string> messages = {mensaje, numeroDeUsuarios, tasaDeUso, promedioMensajes, tiempoEntreMensajes, tiempoDeActividad};
+    std::string mensajeFinal = concatenarMensajes(messages);
+    sendto(socketDescriptor, mensajeFinal.c_str(), mensajeFinal.size(), 0, (struct sockaddr*)&direccionMonitor, sizeof(direccionMonitor));
+
+    //enviarPromedioMensajes(socketDescriptor, direccionMonitor);
+    //enviarTasaUso(socketDescriptor, direccionMonitor);
+    //enviarTiempoEntreMensajes(socketDescriptor, direccionMonitor);
+    //enviarTiempoActividad(socketDescriptor, direccionMonitor);
+    //enviarNumeroUsuarios(socketDescriptor, direccionMonitor);  // Enviar número de usuarios conectados
 
     close(socketDescriptor);
-}
-
-// Enviar el número de usuarios conectados al monitor
-void ServidorChat::enviarNumeroUsuarios(int socketDescriptor, const sockaddr_in& direccionMonitor) {
-    std::lock_guard<std::mutex> lock(mutexUsuarios);
-    std::string mensaje = "Número de usuarios conectados: " + std::to_string(usuarios.size()) + "\n";
-    sendto(socketDescriptor, mensaje.c_str(), mensaje.size(), 0, (struct sockaddr*)&direccionMonitor, sizeof(direccionMonitor));
 }
