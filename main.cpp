@@ -157,7 +157,8 @@ int main(int argc, char* argv[]) {
         std::string mensaje;
         while (std::getline(std::cin, mensaje)) {
             if (mensaje == "*mostrar proceso*") {
-                mostrarEstado();
+                std::thread estadoThread(mostrarEstado);
+                estadoThread.detach();
             } else {
                 cliente.manejarComando(mensaje);  // Envía el mensaje al servidor
             }
