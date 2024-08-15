@@ -27,6 +27,7 @@ std::vector<std::string> consumedMessages;
 std::condition_variable cv;
 std::mutex cv_m;
 bool showStatus = false;
+bool stopThreads = false;
 
 /**
  * @brief Función para producir mensajes y agregarlos a la cola.
@@ -35,7 +36,7 @@ bool showStatus = false;
  */
 void producer(int id) {
     int messageCount = 0;
-    while (showStatus) {
+    while (!stopThreads) {
         std::string message = "Mensaje del productor " + std::to_string(id) + " - " + std::to_string(messageCount++);
 
         // Espera hasta que haya espacio en la cola
@@ -62,7 +63,7 @@ void producer(int id) {
  * @param cliente Referencia al objeto ClienteChat para manejar el comando.
  */
 void consumer(int id, ClienteChat& cliente) {
-    while (showStatus) {
+    while (!stopThreads) {
         // Espera hasta que haya un mensaje en la cola
         sem_wait(&filledSlots);
 
@@ -89,8 +90,9 @@ void consumer(int id, ClienteChat& cliente) {
 /**
  * @brief Función para el monitor que muestra mensajes producidos y consumidos.
  */
-void mostrarEstado() {
+void mostrarEstado(ClienteChat& cliente) {
     showStatus = true;
+    stopThreads = false;
 
     // Crear y lanzar hilos de productores y consumidores para la demostración
     std::vector<std::thread> producerThreads;
@@ -122,7 +124,7 @@ void mostrarEstado() {
         std::cout << "--- Fin del Estado ---\n\n";
     }
 
-    showStatus = false;
+    stopThreads = true;
 
     // Terminar hilos de productores y consumidores
     for (auto& thread : producerThreads) {
@@ -137,6 +139,7 @@ void mostrarEstado() {
     }
 
     std::cout << "Regresando al chat...\n";
+    showStatus = false;
 }
 
 int main(int argc, char* argv[]) {
@@ -175,7 +178,7 @@ int main(int argc, char* argv[]) {
         std::string mensaje;
         while (std::getline(std::cin, mensaje)) {
             if (mensaje == "*mostrar proceso*") {
-                mostrarEstado();
+                mostrarEstado(cliente);
             } else {
                 cliente.manejarComando(mensaje);  // Envía el mensaje al servidor
             }
