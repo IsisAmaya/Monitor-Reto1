@@ -5,19 +5,25 @@
 #include <chrono>
 #include <system_error>
 #include <csignal>
-#include <unistd.h>  // Necesario para usar access()
+#include <unistd.h>// Necesario para usar access()
 // Incluir las cabeceras necesarias para sockets
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <memory>  // Para std::shared_ptr
+#include <memory>
 #include <cstring>
 #include <sstream>
+#include <queue>
+#include <mutex>
+
+// Cola para almacenar mensajes y mutex para sincronización
+std::queue<std::string> message_queue;
+std::mutex queue_mutex;
 
 std::vector<std::shared_ptr<std::atomic<bool>>> server_active;
 
-// Comprueba si el puerto esta disponible
+// Comprueba si el puerto está disponible
 bool is_port_available(int port) {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
@@ -34,7 +40,6 @@ bool is_port_available(int port) {
     close(sockfd);
     return available;
 }
-
 
 // Inicia un servidor en el puerto especificado
 void start_server(int server_id, int port, std::shared_ptr<std::atomic<bool>> server_active) {
@@ -82,8 +87,7 @@ void monitor_servers() {
     }
 }
 
-
-// Recibe mensajes de los servidores
+// Recibe mensajes de los servidores y los almacena en la cola
 void recibirInformacionServidor() {
     int descriptorMonitor = socket(AF_INET, SOCK_DGRAM, 0);
     if (descriptorMonitor == -1) {
@@ -121,21 +125,29 @@ void recibirInformacionServidor() {
             std::string token;
             while (std::getline(stream, token, '\n')) {  // Usa el delimitador '\n'
                 if (!token.empty()) {
-                    messages.push_back(token);
+                    std::lock_guard<std::mutex> lock(queue_mutex);
+                    message_queue.push(token);
                 }
-            }
-
-            // Imprimir los mensajes recibidos
-            for (const auto& msg : messages) {
-                std::cout << msg << std::endl;
             }
         }
     }
     close(descriptorMonitor);
 }
 
+// Muestra la información almacenada en la cola cada 7 segundos
+void mostrarInformacionServidor() {
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::seconds(7));
+        std::lock_guard<std::mutex> lock(queue_mutex);
 
-//Función principal
+        while (!message_queue.empty()) {
+            std::cout << message_queue.front() << std::endl;
+            message_queue.pop();
+        }
+    }
+}
+
+// Función principal
 int main(int argc, char* argv[]) {
     if (argc < 3 || (argc - 1) % 2 != 0) {
         std::cerr << "Uso: " << argv[0] << " <num_servidores> <puerto1> ... <puertoN>\n";
@@ -172,17 +184,17 @@ int main(int argc, char* argv[]) {
     // Iniciar monitoreo
     std::thread monitor_thread(monitor_servers);
 
+    // Iniciar recepción de información de servidores y mostrar información
     std::thread recibirHilo(recibirInformacionServidor);
-    recibirHilo.detach();
+    std::thread mostrarHilo(mostrarInformacionServidor);
 
     // Esperar a que los hilos terminen
     for (auto& t : server_threads) {
         t.join();
     }
     monitor_thread.join();
+    recibirHilo.join();
+    mostrarHilo.join();
 
     return 0;
 }
-
-
-
