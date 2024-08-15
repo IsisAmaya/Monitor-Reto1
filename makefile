@@ -46,7 +46,7 @@ run-servidor: $(TARGET)
 
 # Ejecutar el cliente, permitiendo especificar el puerto al ejecutar make
 run-cliente: $(TARGET)
-	./$(TARGET) cliente 127.0.0.1 $(CLIENT_PORT)
+	./$(TARGET) cliente 192.168.120.195 $(CLIENT_PORT)
 
 # Compilar el monitor por separado
 $(MONITOR_TARGET): $(SRC_DIR)/MonitorServidores.cpp $(INCLUDE_DIR)/MonitorServidores.h
