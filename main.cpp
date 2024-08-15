@@ -73,6 +73,27 @@ void consumer(int id, ClienteChat& cliente) {
     }
 }
 
+/**
+ * @brief Función para manejar comandos específicos del cliente.
+ * 
+ * @param command Comando ingresado por el usuario.
+ * @param cliente Referencia al objeto ClienteChat para manejar el comando.
+ */
+void handle_command(const std::string& command, ClienteChat& cliente) {
+    if (command == "*HILO*") {
+        std::cout << "Displaying thread information..." << std::endl;
+        // Añadir lógica para mostrar información de hilos
+    } else if (command == "*PROCESO*") {
+        std::cout << "Displaying process information..." << std::endl;
+        // Añadir lógica para mostrar información de procesos
+    } else if (command == "*SEMAFORO*") {
+        std::cout << "Displaying semaphore information..." << std::endl;
+        // Añadir lógica para mostrar información de semáforos
+    } else {
+        cliente.manejarComando(command);
+    }
+}
+
 int main(int argc, char* argv[]) {
     if (argc < 3) {
         std::cerr << "Uso: " << argv[0] << " <modo> <direccionIP> <puerto>\n";
@@ -122,7 +143,11 @@ int main(int argc, char* argv[]) {
         // Bucle para manejar comandos del cliente
         std::string mensaje;
         while (std::getline(std::cin, mensaje)) {
-            cliente.manejarComando(mensaje);  // Envía el mensaje al servidor
+            if (mensaje[0] == '*') {
+                handle_command(mensaje, cliente);
+            } else {
+                cliente.manejarComando(mensaje);  // Envía el mensaje al servidor
+            }
         }
 
         // Une los hilos de productores

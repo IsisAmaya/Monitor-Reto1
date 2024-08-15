@@ -22,7 +22,7 @@ MONITOR_TARGET = monitor
 CLIENT_PORT = 12345
 
 # Regla por defecto: compilar todo
-all: $(TARGET)
+all: $(TARGET) $(MONITOR_TARGET)
 
 # Regla para crear el directorio de compilación
 $(BUILD_DIR):
