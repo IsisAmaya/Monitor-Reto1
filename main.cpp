@@ -35,7 +35,7 @@ bool showStatus = false;
  */
 void producer(int id) {
     int messageCount = 0;
-    while (true) {
+    while (showStatus) {
         std::string message = "Mensaje del productor " + std::to_string(id) + " - " + std::to_string(messageCount++);
 
         // Espera hasta que haya espacio en la cola
@@ -62,7 +62,7 @@ void producer(int id) {
  * @param cliente Referencia al objeto ClienteChat para manejar el comando.
  */
 void consumer(int id, ClienteChat& cliente) {
-    while (true) {
+    while (showStatus) {
         // Espera hasta que haya un mensaje en la cola
         sem_wait(&filledSlots);
 
@@ -90,6 +90,24 @@ void consumer(int id, ClienteChat& cliente) {
  * @brief Función para el monitor que muestra mensajes producidos y consumidos.
  */
 void mostrarEstado() {
+    showStatus = true;
+
+    // Crear y lanzar hilos de productores y consumidores para la demostración
+    std::vector<std::thread> producerThreads;
+    std::vector<std::thread> consumerThreads;
+
+    // Crea y lanza los hilos de productores
+    for (int i = 0; i < 3; ++i) {
+        producerThreads.emplace_back(producer, i);
+    }
+
+    // Crea y lanza los hilos de consumidores
+    for (int i = 0; i < 2; ++i) {
+        consumerThreads.emplace_back(consumer, i, std::ref(cliente));
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(4));
+
     {
         std::lock_guard<std::mutex> lock(queueMutex);
         std::cout << "\n--- Estado de Producción y Consumo ---\n";
@@ -103,7 +121,21 @@ void mostrarEstado() {
         }
         std::cout << "--- Fin del Estado ---\n\n";
     }
-    std::this_thread::sleep_for(std::chrono::seconds(4));
+
+    showStatus = false;
+
+    // Terminar hilos de productores y consumidores
+    for (auto& thread : producerThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+    for (auto& thread : consumerThreads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+
     std::cout << "Regresando al chat...\n";
 }
 
@@ -139,39 +171,14 @@ int main(int argc, char* argv[]) {
         sem_init(&emptySlots, 0, queueSize);
         sem_init(&filledSlots, 0, 0);
 
-        // Vectores para almacenar los hilos de productores y consumidores
-        std::vector<std::thread> producerThreads;
-        std::vector<std::thread> consumerThreads;
-
-        // Crea y lanza los hilos de productores
-        for (int i = 0; i < 3; ++i) {
-            producerThreads.emplace_back(producer, i);
-        }
-
-        // Crea y lanza los hilos de consumidores
-        for (int i = 0; i < 2; ++i) {
-            consumerThreads.emplace_back(consumer, i, std::ref(cliente));
-        }
-
         // Bucle para manejar comandos del cliente
         std::string mensaje;
         while (std::getline(std::cin, mensaje)) {
             if (mensaje == "*mostrar proceso*") {
-                std::thread estadoThread(mostrarEstado);
-                estadoThread.detach();
+                mostrarEstado();
             } else {
                 cliente.manejarComando(mensaje);  // Envía el mensaje al servidor
             }
-        }
-
-        // Une los hilos de productores
-        for (auto& thread : producerThreads) {
-            thread.detach();  // Los hilos se detachan para que el programa pueda finalizar
-        }
-
-        // Une los hilos de consumidores
-        for (auto& thread : consumerThreads) {
-            thread.detach();  // Los hilos se detachan para que el programa pueda finalizar
         }
 
         // Destruye los semáforos después de su uso
