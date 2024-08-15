@@ -4,6 +4,8 @@
 #include <queue>
 #include <semaphore.h>
 #include <mutex>
+#include <chrono>
+#include <condition_variable>
 #include "ClienteChat.h"
 #include "ServidorChat.h"
 
@@ -16,6 +18,15 @@ std::mutex queueMutex;
 
 // Cola compartida
 std::queue<std::string> messageQueue;
+
+// Almacenar mensajes para el monitor
+std::vector<std::string> producedMessages;
+std::vector<std::string> consumedMessages;
+
+// Variable de condición y mutex para controlar el estado
+std::condition_variable cv;
+std::mutex cv_m;
+bool showStatus = false;
 
 /**
  * @brief Función para producir mensajes y agregarlos a la cola.
@@ -34,7 +45,7 @@ void producer(int id) {
         {
             std::lock_guard<std::mutex> lock(queueMutex);
             messageQueue.push(message);
-            std::cout << "Producido: " << message << std::endl;
+            producedMessages.push_back(message);  // Almacena el mensaje producido
         }
 
         // Señala que hay un mensaje disponible en la cola
@@ -58,12 +69,14 @@ void consumer(int id, ClienteChat& cliente) {
         // Bloquea el mutex para sacar el mensaje de la cola
         {
             std::lock_guard<std::mutex> lock(queueMutex);
-            std::string message = messageQueue.front();
-            messageQueue.pop();
-            std::cout << "Consumido por el consumidor " << id << ": " << message << std::endl;
+            if (!messageQueue.empty()) {
+                std::string message = messageQueue.front();
+                messageQueue.pop();
+                consumedMessages.push_back(message);  // Almacena el mensaje consumido
 
-            // Envía el mensaje al servidor
-            cliente.manejarComando(message);
+                // Envía el mensaje al servidor
+                cliente.manejarComando(message);
+            }
         }
 
         // Señala que hay espacio disponible en la cola
@@ -74,29 +87,29 @@ void consumer(int id, ClienteChat& cliente) {
 }
 
 /**
- * @brief Función para manejar comandos específicos del cliente.
- * 
- * @param command Comando ingresado por el usuario.
- * @param cliente Referencia al objeto ClienteChat para manejar el comando.
+ * @brief Función para el monitor que muestra mensajes producidos y consumidos.
  */
-void handle_command(const std::string& command, ClienteChat& cliente) {
-    if (command == "*HILO*") {
-        std::cout << "Displaying thread information..." << std::endl;
-        // Añadir lógica para mostrar información de hilos
-    } else if (command == "*PROCESO*") {
-        std::cout << "Displaying process information..." << std::endl;
-        // Añadir lógica para mostrar información de procesos
-    } else if (command == "*SEMAFORO*") {
-        std::cout << "Displaying semaphore information..." << std::endl;
-        // Añadir lógica para mostrar información de semáforos
-    } else {
-        cliente.manejarComando(command);
+void mostrarEstado() {
+    {
+        std::lock_guard<std::mutex> lock(queueMutex);
+        std::cout << "\n--- Estado de Producción y Consumo ---\n";
+        std::cout << "Producidos: \n";
+        for (const auto& msg : producedMessages) {
+            std::cout << msg << "\n";
+        }
+        std::cout << "Consumidos: \n";
+        for (const auto& msg : consumedMessages) {
+            std::cout << msg << "\n";
+        }
+        std::cout << "--- Fin del Estado ---\n\n";
     }
+    std::this_thread::sleep_for(std::chrono::seconds(4));
+    std::cout << "Regresando al chat...\n";
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 3) {
-        std::cerr << "Uso: " << argv[0] << " <modo> <direccionIP> <puerto>\n";
+    if (argc < 2) {
+        std::cerr << "Uso: " << argv[0] << " <modo> [<direccionIP> <puerto>]\n";
         std::cerr << "Modos disponibles: servidor, cliente\n";
         return 1;
     }
@@ -143,8 +156,8 @@ int main(int argc, char* argv[]) {
         // Bucle para manejar comandos del cliente
         std::string mensaje;
         while (std::getline(std::cin, mensaje)) {
-            if (mensaje[0] == '*') {
-                handle_command(mensaje, cliente);
+            if (mensaje == "*mostrar proceso*") {
+                mostrarEstado();
             } else {
                 cliente.manejarComando(mensaje);  // Envía el mensaje al servidor
             }
@@ -152,12 +165,12 @@ int main(int argc, char* argv[]) {
 
         // Une los hilos de productores
         for (auto& thread : producerThreads) {
-            thread.join();
+            thread.detach();  // Los hilos se detachan para que el programa pueda finalizar
         }
 
         // Une los hilos de consumidores
         for (auto& thread : consumerThreads) {
-            thread.join();
+            thread.detach();  // Los hilos se detachan para que el programa pueda finalizar
         }
 
         // Destruye los semáforos después de su uso
