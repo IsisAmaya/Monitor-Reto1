@@ -124,6 +124,11 @@ void mostrarEstado(ClienteChat& cliente) {
         std::cout << "--- Fin del Estado ---\n\n";
     }
 
+    for (int i = 0; i < 10; ++i) {  // Intentar liberar los semáforos varias veces
+        sem_post(&filledSlots);
+        sem_post(&emptySlots);
+    }
+
     stopThreads = true;
 
     // Terminar hilos de productores y consumidores
