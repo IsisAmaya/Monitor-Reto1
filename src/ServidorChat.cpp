@@ -45,7 +45,7 @@ void ServidorChat::iniciar() {
     sockaddr_in direccionServidor;
     direccionServidor.sin_family = AF_INET;
     direccionServidor.sin_port = htons(puerto);
-    direccionServidor.sin_addr.s_addr = INADDR_ANY;
+    direccionServidor.sin_addr.s_addr = inet_addr("192.168.120.195");
 
     // Asociar el socket a la dirección y puerto
     if (bind(descriptorServidor, (sockaddr*)&direccionServidor, sizeof(direccionServidor)) == -1) {
@@ -275,7 +275,7 @@ void ServidorChat::enviarInformacionMonitor() {
     sockaddr_in direccionMonitor;
     direccionMonitor.sin_family = AF_INET;
     direccionMonitor.sin_port = htons(55555); // Puerto para el monitor
-    direccionMonitor.sin_addr.s_addr = inet_addr("127.0.0.1"); // Dirección IP del monitor (localhost)
+    direccionMonitor.sin_addr.s_addr = inet_addr("192.168.120.195"); // Dirección IP del monitor (localhost)
 
     std::string mensaje = GREEN "Servidor en el puerto: " + std::to_string(puerto) + RESET + "\n";
     std::string numeroDeUsuarios = enviarNumeroUsuarios();
