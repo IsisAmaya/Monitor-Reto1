@@ -25,7 +25,6 @@ ServidorChat::ServidorChat(int puerto)
     tiempoInicio = std::chrono::steady_clock::now();
 }
 
-// Método para iniciar el servidor
 void ServidorChat::iniciar() {
     // Crear el socket del servidor
     descriptorServidor = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -45,17 +44,25 @@ void ServidorChat::iniciar() {
     sockaddr_in direccionServidor;
     direccionServidor.sin_family = AF_INET;
     direccionServidor.sin_port = htons(puerto);
-    direccionServidor.sin_addr.s_addr = inet_addr("192.168.120.195");
+
+    // Cambia esta IP a la que deseas usar, asegúrate de que sea la IP correcta
+    if (inet_pton(AF_INET, "172.18.76.218", &direccionServidor.sin_addr) <= 0) {
+        std::cerr << "Error al convertir la dirección IP." << std::endl;
+        close(descriptorServidor);
+        return;
+    }
 
     // Asociar el socket a la dirección y puerto
     if (bind(descriptorServidor, (sockaddr*)&direccionServidor, sizeof(direccionServidor)) == -1) {
         std::cerr << "Error al hacer bind del socket del servidor.\n";
+        close(descriptorServidor);  // Añadir close aquí para liberar el recurso
         return;
     }
 
     // Poner el servidor en modo escucha
     if (listen(descriptorServidor, 10) == -1) {
         std::cerr << "Error al poner el servidor en modo escucha.\n";
+        close(descriptorServidor);  // Añadir close aquí para liberar el recurso
         return;
     }
 
@@ -85,6 +92,7 @@ void ServidorChat::iniciar() {
         hiloCliente.detach();
     }
 }
+
 
 // Manejar la comunicación con un cliente
 void ServidorChat::manejarCliente(int descriptorCliente) {
@@ -275,7 +283,7 @@ void ServidorChat::enviarInformacionMonitor() {
     sockaddr_in direccionMonitor;
     direccionMonitor.sin_family = AF_INET;
     direccionMonitor.sin_port = htons(55555); // Puerto para el monitor
-    direccionMonitor.sin_addr.s_addr = inet_addr("192.168.120.195"); // Dirección IP del monitor (localhost)
+    direccionMonitor.sin_addr.s_addr = inet_addr("172.18.76.218"); // Dirección IP del monitor
 
     std::string mensaje = GREEN "Servidor en el puerto: " + std::to_string(puerto) + RESET + "\n";
     std::string numeroDeUsuarios = enviarNumeroUsuarios();

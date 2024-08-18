@@ -46,18 +46,20 @@ run-servidor: $(TARGET)
 
 # Ejecutar el cliente, permitiendo especificar el puerto al ejecutar make
 run-cliente: $(TARGET)
-	./$(TARGET) cliente 192.168.120.195 $(CLIENT_PORT)
+	./$(TARGET) cliente 172.18.76.218 $(CLIENT_PORT)
 
 # Compilar el monitor por separado
 $(MONITOR_TARGET): $(SRC_DIR)/MonitorServidores.cpp $(INCLUDE_DIR)/MonitorServidores.h
 	$(CXX) $(CXXFLAGS) $(SRC_DIR)/MonitorServidores.cpp -o $(MONITOR_TARGET)
 
-# Ejecutar el monitor
 run-monitor: $(MONITOR_TARGET)
 	@echo "Ejecutando el monitor..."
 	@read -p "Ingrese la cantidad de servidores: " NUM_SERVERS; \
 	read -p "Ingrese los puertos (separados por espacio): " PORTS; \
+	echo "./$(MONITOR_TARGET) $$NUM_SERVERS $$PORTS"; \
 	./$(MONITOR_TARGET) $$NUM_SERVERS $$PORTS
+
+
 
 # Declarar reglas como phony
 .PHONY: all clean run-servidor run-cliente monitor run-monitor

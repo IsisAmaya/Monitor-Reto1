@@ -23,6 +23,9 @@ std::mutex queue_mutex;
 
 std::vector<std::shared_ptr<std::atomic<bool>>> server_active;
 
+// Especifica la dirección IP que deseas usar
+const char* ip_address = "172.18.76.218"; // Cambia esta IP según tus necesidades
+
 // Comprueba si el puerto está disponible
 bool is_port_available(int port) {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -34,7 +37,13 @@ bool is_port_available(int port) {
     sockaddr_in address;
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
-    address.sin_addr.s_addr = INADDR_ANY;
+
+    // Reemplaza INADDR_ANY con la IP específica
+    if (inet_pton(AF_INET, ip_address, &address.sin_addr) <= 0) {
+        std::cerr << "Error al convertir la dirección IP: " << ip_address << std::endl;
+        close(sockfd);
+        return false;
+    }
 
     bool available = (bind(sockfd, (sockaddr*)&address, sizeof(address)) == 0);
     close(sockfd);
@@ -43,6 +52,8 @@ bool is_port_available(int port) {
 
 // Inicia un servidor en el puerto especificado
 void start_server(int server_id, int port, std::shared_ptr<std::atomic<bool>> server_active) {
+    std::cout << "Iniciando hilo para Servidor " << server_id << " en el puerto " << port << std::endl;
+
     std::string command = "./build/chat servidor " + std::to_string(port);
 
     // Verificar si el archivo existe antes de ejecutar el comando
@@ -72,12 +83,15 @@ void start_server(int server_id, int port, std::shared_ptr<std::atomic<bool>> se
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
+
+    std::cout << "Hilo para Servidor " << server_id << " terminado" << std::endl;
 }
 
 // Monitorea los servidores y los reinicia si es necesario
 void monitor_servers() {
     while (true) {
         for (size_t i = 0; i < server_active.size(); ++i) {
+            std::cout << "Monitoreando servidor " << i + 1 << std::endl;
             if (!*server_active[i]) {
                 std::cout << "Reiniciando Servidor " << i + 1 << "...\n";
                 *server_active[i] = true;
@@ -98,10 +112,17 @@ void recibirInformacionServidor() {
     sockaddr_in direccionMonitor;
     direccionMonitor.sin_family = AF_INET;
     direccionMonitor.sin_port = htons(55555); // Puerto para recibir los datos
-    direccionMonitor.sin_addr.s_addr = INADDR_ANY;
+
+    // Reemplaza INADDR_ANY con la IP específica
+    if (inet_pton(AF_INET, ip_address, &direccionMonitor.sin_addr) <= 0) {
+        std::cerr << "Error al convertir la dirección IP: " << ip_address << std::endl;
+        close(descriptorMonitor);
+        return;
+    }
 
     if (bind(descriptorMonitor, (sockaddr*)&direccionMonitor, sizeof(direccionMonitor)) == -1) {
         std::cerr << "Error al hacer bind del socket del monitor.\n";
+        close(descriptorMonitor);
         return;
     }
 
